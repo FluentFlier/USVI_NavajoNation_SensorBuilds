@@ -1,0 +1,42 @@
+//Receiver Code for Manual data transmission.
+
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <RH_ASK.h>
+#include <ESP8266WiFi.h>
+
+#define LCD_I2C_ADDRESS 0x27
+LiquidCrystal_I2C lcd(LCD_I2C_ADDRESS, 16, 2);
+
+RH_ASK rfDriver(2000, 6, 5); // Initialize the RH_ASK object with receiver data pin (6) and transmitter data pin (5)
+
+void setup() {
+  lcd.init();
+  lcd.backlight();
+  Serial.begin(9600);
+  rfDriver.init();
+}
+
+void loop() {
+  uint8_t buf[RH_ASK_MAX_MESSAGE_LEN];
+  uint8_t buflen = sizeof(buf);
+
+  if (rfDriver.recv(buf, &buflen)) {
+    buf[buflen] = '\0'; // Null-terminate the received data
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Received Data:");
+    lcd.setCursor(0, 1);
+    lcd.print((char*)buf);
+
+    Serial.print("Received: ");
+    Serial.println((char*)buf);
+  } else {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Error receiving data");
+    Serial.println("Error receiving data");
+  }
+
+  delay(1000);
+}
