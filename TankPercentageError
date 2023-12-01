@@ -1,0 +1,108 @@
+//Tank Percentage Error Message.
+
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <RH_ASK.h>
+
+#define LCD_I2C_ADDRESS 0x27
+LiquidCrystal_I2C lcd(LCD_I2C_ADDRESS, 16, 2);
+
+const int trigPin = 4;
+const int echoPin = 7;
+long duration;
+int distance;
+
+RH_ASK rfDriver(2000, 12);
+
+float tankHeight;
+float tankDiameter;
+
+void setup() {
+  lcd.init();
+  lcd.backlight();
+
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  rfDriver.init();
+
+  // Assigning fixed values for tankHeight and tankDiameter
+  tankHeight = 30.0; // Replace with the desired height
+  tankDiameter = 10.0; // Replace with the desired diameter
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Tank Ht: ");
+  lcd.print(tankHeight);
+  lcd.print("cm");
+
+  lcd.setCursor(0, 1);
+  lcd.print("Tank Dia: ");
+  lcd.print(tankDiameter);
+  lcd.print("cm");
+
+  // Optional: Print values to Serial Monitor
+  Serial.begin(9600); // Initialize Serial Monitor
+  Serial.print("Tank Height: ");
+  Serial.print(tankHeight);
+  Serial.println(" cm");
+  Serial.print("Tank Diameter: ");
+  Serial.print(tankDiameter);
+  Serial.println(" cm");
+}
+
+void loop() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Uptime: ");
+  lcd.print(millis() / 1000);
+  lcd.print("s");
+
+  lcd.setCursor(0, 1);
+
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  duration = pulseIn(echoPin, HIGH);
+  distance = duration * 0.034 / 2;
+
+  lcd.print("Dist: ");
+  lcd.print(distance);
+  lcd.print("cm");
+
+  // Calculate tank volume and percentage
+  float tankVolume = PI * pow(tankDiameter / 2, 2) * tankHeight;
+  float tankPercentage = (distance / tankVolume) * 100;
+
+  // Display tank percentage on LCD
+  lcd.setCursor(0, 2);
+  lcd.print("Tank%: ");
+  lcd.print(tankPercentage, 1);
+  lcd.print("%");
+
+  // Display tank percentage on Serial Monitor
+  Serial.print("Tank Percentage: ");
+  Serial.print(tankPercentage, 1);
+  Serial.println("%");
+
+  // Check if tank volume is less than 25%
+  if (tankPercentage < 25.0) {
+    Serial.println("Error: Tank volume is less than 25%!");
+  }
+
+  lcd.setCursor(0, 3);
+
+  char dataToSend[40];
+  sprintf(dataToSend, "Uptime: %ds, Dist: %dcm, Tank: %.1f%%", millis() / 1000, distance, tankPercentage);
+
+  if (rfDriver.send((uint8_t *)dataToSend, strlen(dataToSend))) {
+    lcd.print("T:Y");
+    Serial.println("Sent successfully via RF.");
+  } else {
+    lcd.print("T:N");
+    Serial.println("Failed to send via RF.");
+  }
+
+  delay(1000);
+}
